@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Industrial Safety QA</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    textarea { width: 100%; height: 100px; }
+    button { margin-top: 10px; padding: 5px 10px; }
+    .hidden { display: none; }
+    pre { background: #f5f5f5; padding: 10px; overflow-x: auto; }
+    .context { margin-bottom: 10px; padding: 5px; border-left: 3px solid #007BFF; background: #f0f8ff; }
+    .source { font-size: 0.85em; color: #555; }
+  </style>
+</head>
+<body>
+  <h2>Industrial Safety QA</h2>
+  <textarea id="question" placeholder="Type your question here..."></textarea><br>
+  <label for="mode">Mode:</label>
+  <select id="mode">
+    <option value="baseline">Baseline</option>
+    <option value="hybrid" selected>Hybrid</option>
+    <option value="learned">Learned</option>
+  </select>
+  <button onclick="askQuestion()">Ask</button>
+
+  <div id="answer" class="result hidden">
+    <h3>Answer:</h3>
+    <pre id="answerText"></pre>
+    <h4>Contexts:</h4>
+    <div id="contextsText"></div>
+    <h4>Reranker Used:</h4>
+    <pre id="rerankerText"></pre>
+  </div>
+
+  <script>
+    async function askQuestion() {
+      const question = document.getElementById('question').value.trim();
+      const mode = document.getElementById('mode').value;
+      if (!question) return alert("Please enter a question.");
+
+      const respDiv = document.getElementById('answer');
+      const answerText = document.getElementById('answerText');
+      const contextsDiv = document.getElementById('contextsText');
+      const rerankerText = document.getElementById('rerankerText');
+
+      answerText.textContent = "Loading...";
+      contextsDiv.innerHTML = "";
+      rerankerText.textContent = "";
+      respDiv.classList.remove("hidden");
+
+      try {
+        const res = await fetch("http://127.0.0.1:8000/ask", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ q: question, k: 5, mode })
+        });
+
+        let data;
+        try {
+          data = await res.json();
+        } catch (jsonErr) {
+          const text = await res.text();
+          throw new Error("Invalid JSON response:\n" + text);
+        }
+
+        answerText.textContent = data.answer || "No answer found.";
+        rerankerText.textContent = data.reranker_used || "N/A";
+
+        contextsDiv.innerHTML = "";
+        if (data.contexts && data.contexts.length) {
+          data.contexts.forEach(c => {
+            const div = document.createElement("div");
+            div.className = "context";
+            const snippet = c.text.split("\n")[0].slice(0, 200);
+            div.innerHTML = `<p>${snippet}</p><p class="source">Source: ${c.pdf}</p>`;
+            contextsDiv.appendChild(div);
+          });
+        }
+
+      } catch (err) {
+        answerText.textContent = "Error: " + err.message;
+        contextsDiv.innerHTML = "";
+        rerankerText.textContent = "";
+      }
+    }
+  </script>
+</body>
+</html>

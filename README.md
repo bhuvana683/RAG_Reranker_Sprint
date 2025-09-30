@@ -1,7 +1,7 @@
 # RAG_Reranker_Sprint
 
 
-
+inside the script folder all necessary file are there
 
 ## ** README.md Example**
 
